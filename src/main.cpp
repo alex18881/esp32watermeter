@@ -4,25 +4,32 @@
  * Turns on an LED on for one second,
  * then off for one second, repeatedly.
  */
+#define DEBUG_ESP_CORE
+
 #include "Arduino.h"
 #include "WiFi.h"
 #include "sdkconfig.h"
 #include "esp_system.h"
 #include "persistStorage.h"
 #include "SPIFFS.h"
-#include "WebServer.h"
+//#include "AsyncJson.h"
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include "cJSON.h"
 
-#ifndef LED_BUILTIN
 #define LED_BUILTIN 2
-#endif
-
 #define FORMAT_SPIFFS_IF_FAILED true
 #define AP_SSID "WaterMetterAP"
 #define AP_PASS "12345678"
 #define HTROOT "/httroot"
 
 PersistStorage storage;
-WebServer webServer(80);
+AsyncWebServer webServer(80);
+//extern int lwip_bufferize;
+int ledToggleOffPeriod = 500;
+int ledTogglePeriod = 2000;
+long ledToggleTime;
+uint32_t ledValue;
 
 void printMac(char *type, uint8_t *mac)
 {
@@ -30,50 +37,44 @@ void printMac(char *type, uint8_t *mac)
 	Serial.println("");
 }
 
-void get_404()
+void get_404(AsyncWebServerRequest *request)
 {
 	Serial.println(F("Web server: 404"));
 	File file = SPIFFS.open("/httroot/err404.html");
-	webServer.send(301, "text/html", file.readString());
+	request->send(301, "text/html", file.readString());
 	file.close();
 }
 
-void bindStatics(const char *dirName)
+void get_apiWifiList(AsyncWebServerRequest *request)
 {
-	File link = SPIFFS.open(dirName);
+	int count = WiFi.scanNetworks();
+	cJSON *json = cJSON_CreateArray();
 
-	if (!link)
+	for (int i = 0; i < count; i++)
 	{
-		return;
+		cJSON *listItem = cJSON_CreateObject();
+		cJSON_AddStringToObject(listItem, "ssid", WiFi.SSID(i).c_str());
+		cJSON_AddNumberToObject(listItem, "rssi", WiFi.RSSI(i));
+		cJSON_AddBoolToObject(listItem, "open", WiFi.encryptionType(i) == WIFI_AUTH_OPEN);
+		cJSON_AddItemToArray(json, listItem);
+		Serial.print(F("Found SSID: "));
+		Serial.println(WiFi.SSID(i));
+		delay(10);
 	}
 
-	if (link.isDirectory()) 
-	{
-		Serial.print(F("Dir:"));
-		Serial.println(link.name());
-		File child = link.openNextFile();
-		while (child)
-		{
-			bindStatics(child.name());
-			child.close();
-			child = link.openNextFile();
-		}
-	} else {
-		Serial.print(F("Binding static file:"));
-		Serial.println(link.name());
-
-		String fileName = String(link.name());
-		fileName.replace(HTROOT, "");
-		webServer.serveStatic(fileName.c_str(), SPIFFS, link.name());
-	}
-	link.close();
+	request->send(200, "application/json", cJSON_Print(json));
 }
 
 void setup()
 {
 	// initialize LED digital pin as an output.
 	pinMode(LED_BUILTIN, OUTPUT);
+	Serial.setDebugOutput(true);
 	Serial.begin(CONFIG_ESPTOOLPY_BAUD);
+	//lwip_bufferize = 0;
+
+	Serial.printf("Built at '%s' %s\n", __DATE__, __TIME__);
+	Serial.println();
 
 	if (!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED))
 	{
@@ -100,6 +101,8 @@ void setup()
 		Serial.println(F(""));
 		Serial.println(F("WiFi connected"));
 		ip = WiFi.localIP();
+		ledTogglePeriod = 5000;
+
 	} else if( WiFi.softAP(AP_SSID, AP_PASS) ) {
 		Serial.println(F("WIFI Access point"));
 		Serial.print(F("\tSSID: "));
@@ -107,40 +110,35 @@ void setup()
 		Serial.print(F("\tPass phrase: "));
 		Serial.println(AP_PASS);
 		ip = WiFi.softAPIP();
+		ledTogglePeriod = 1000;
 	}
+
+	ledValue = HIGH;
+	digitalWrite(LED_BUILTIN, ledValue);
+	ledToggleTime = millis();
 
 	Serial.println(F("Starting web server"));
 
-	webServer.serveStatic("/", SPIFFS, "/httroot/index.html");
-	bindStatics(HTROOT);
+	webServer.serveStatic("/", SPIFFS, "/httroot/")
+		.setDefaultFile("index.html");
+		
+	webServer.on("/api/wifi-list", HTTP_GET, get_apiWifiList);
 	webServer.onNotFound(get_404);
 	webServer.begin();
 	Serial.print(F("Web server IP:"));
 	Serial.println(ip);
-
-	// uint8_t mac[6];
-	// if( ESP_OK == esp_read_mac(mac, ESP_MAC_WIFI_STA))
-	// {
-	// 	printMac("STA", mac);
-	// }
-
-	// if( ESP_OK == esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP))
-	// {
-	// 	printMac("SOFT AP", mac);
-	// }
-
-	// if (ESP_OK == esp_read_mac(mac, ESP_MAC_BT))
-	// {
-	// 	printMac("BT", mac);
-	// }
-
-	// if (ESP_OK == esp_read_mac(mac, ESP_MAC_ETH))
-	// {
-	// 	printMac("ETH", mac);
-	// }
 }
 
 void loop()
 {
-	webServer.handleClient();
+	long currTime = millis();
+	int togglePeriod = ledValue == HIGH ? ledToggleOffPeriod : ledTogglePeriod;
+
+	if ((currTime - ledToggleTime) > togglePeriod)
+	{
+		ledValue = ledValue == HIGH ? LOW : HIGH;
+		digitalWrite(LED_BUILTIN, ledValue);
+		ledToggleTime = currTime;
+	}
+	
 }
