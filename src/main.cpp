@@ -10,8 +10,8 @@
 #include "WiFi.h"
 #include "sdkconfig.h"
 #include "esp_system.h"
-#include "persistStorage.h"
 #include "SPIFFS.h"
+#include "appSettings.h"
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include "cJSON.h"
@@ -23,8 +23,10 @@
 #define AP_PASS "12345678"
 #define HTROOT "/httroot"
 
-PersistStorage storage;
+
 AsyncWebServer webServer(80);
+AppSettings settings;
+
 int ledToggleOffPeriod = 500;
 int ledTogglePeriod = 2000;
 long ledToggleTime;
@@ -81,6 +83,10 @@ void get_404(AsyncWebServerRequest *request)
 
 void get_apiWifiList(AsyncWebServerRequest *request)
 {
+	Serial.println(F("Get Wifi list"));
+	Serial.print(F("\tcurrent Wifi SSID"));
+	Serial.println(settings.getSSID());
+
 	int count = WiFi.scanNetworks();
 	cJSON *result = cJSON_CreateObject();
 	cJSON *jsonList = cJSON_AddArrayToObject(result, "listAvailable");
@@ -88,7 +94,7 @@ void get_apiWifiList(AsyncWebServerRequest *request)
 	for (int i = 0; i < count; i++)
 	{
 		cJSON *listItem;
-		if (WiFi.SSID(i).compareTo(String(storage.settings.WifiSSID)) == 0)
+		if (WiFi.SSID(i).compareTo(settings.getSSID()) == 0)
 		{
 			listItem = cJSON_AddObjectToObject(result, "connected");
 			cJSON_AddStringToObject(listItem, "status", getWifiStatusName(WiFi.status()));
@@ -123,10 +129,8 @@ void post_apiWifiConnect(AsyncWebServerRequest *request)
 
 		Serial.print(F("\t SSID: "));
 		Serial.println(ssid);
-
-		storage.settings.WifiSSID = ssid;
-		storage.settings.WifiPassword = request->getParam("passkey", true)->value();
-		storage.storeSettings();
+		settings.setSSID(ssid.c_str());
+		settings.setPasskey(request->getParam("passkey", true)->value().c_str());
 		
 		delay(500);
 
@@ -156,17 +160,15 @@ void setup()
 		return;
 	}
 
+	settings.init();
 	IPAddress ip(0,0,0,0);
 
-	storage.init();
-
-	if (storage.settings.WifiSSID.length() > 0)
+	if (settings.getSSID().length())
 	{
-		Serial.print(F("Connecting to SSID "));
-		Serial.print(storage.settings.WifiSSID.length());
-		Serial.println(storage.settings.WifiSSID.c_str());
+		Serial.print(F("Connecting to SSID: "));
+		Serial.println(settings.getSSID());
 
-		WiFi.begin(storage.settings.WifiSSID.c_str(), storage.settings.WifiPassword.c_str());
+		WiFi.begin(settings.getSSID().c_str(), settings.getPasskey().c_str());
 		long connectTimeout = millis() + WIFI_CONNECT_TIMEOUT;
 
 		while (WiFi.status() != WL_CONNECTED && millis() < connectTimeout)
