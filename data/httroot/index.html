@@ -48,6 +48,10 @@
 							class="list-group-item list-group-item-action"
 							v-if="current"
 						>
+							<img src="images/wifi-1.svg" height="16px" v-if="current.rssi &lt; -80">
+							<img src="images/wifi-2.svg" height="16px" v-if="current.rssi &gt;= -80 && current.rssi &lt; -70">
+							<img src="images/wifi-3.svg" height="16px" v-if="current.rssi &gt;= -70 && current.rssi &lt; -67">
+							<img src="images/wifi-4.svg" height="16px" v-if="current.rssi &gt;= -67">
 							<b>{{current.ssid}}</b>
 							<span v-if="current.open" class="tex-muted">(open)</span>
 						</a>
@@ -60,6 +64,10 @@
 							v-for="wifi in wifis"
 							@click.stop="openPasskeyForm(wifi)"
 						>
+							<img src="images/wifi-1.svg" height="16px" v-if="wifi.rssi &lt; -80">
+							<img src="images/wifi-2.svg" height="16px" v-if="wifi.rssi &gt;= -80 && wifi.rssi &lt; -70">
+							<img src="images/wifi-3.svg" height="16px" v-if="wifi.rssi &gt;= -70 && wifi.rssi &lt; -67">
+							<img src="images/wifi-4.svg" height="16px" v-if="wifi.rssi &gt;= -67">
 							{{wifi.ssid}}
 							<span v-if="wifi.open" class="tex-muted">(open)</span>
 						</a>

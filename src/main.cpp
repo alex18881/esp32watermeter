@@ -180,13 +180,16 @@ void setup()
 	}
 
 	if (WiFi.status() == WL_CONNECTED) {
-		Serial.println(F(""));
 		Serial.println(F("WiFi connected"));
+		WiFi.setAutoReconnect(true);
+		WiFi.setHostname(AP_SSID);
 		ip = WiFi.localIP();
 		ledTogglePeriod = 5000;
 
 	} else if( WiFi.softAP(AP_SSID, AP_PASS) ) {
 		Serial.println(F("WIFI Access point"));
+		Serial.print(F("\tMac address: "));
+		Serial.println(WiFi.macAddress());
 		Serial.print(F("\tSSID: "));
 		Serial.println(AP_SSID);
 		Serial.print(F("\tPass phrase: "));
@@ -201,14 +204,18 @@ void setup()
 
 	Serial.println(F("Starting web server"));
 
+	//webServer = AsyncWebServer(80);
+
 	webServer.serveStatic("/", SPIFFS, "/httroot/")
 		.setDefaultFile("index.html");
 		
 	webServer.on("/api/wifi-list", HTTP_GET, get_apiWifiList);
 	webServer.on("/api/wifi-connect", HTTP_POST, post_apiWifiConnect);
 	webServer.onNotFound(get_404);
+
+	delay(2000);
 	webServer.begin();
-	Serial.print(F("Web server IP:"));
+	Serial.print(F("Web server IP: "));
 	Serial.println(ip);
 }
 
