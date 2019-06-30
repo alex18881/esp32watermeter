@@ -11,17 +11,20 @@ class PersistStorage {
 
 		struct CounterSettings
 		{
-			char WifiSSID[];
-			char WifiPassword[];
+			String WifiSSID;
+			String WifiPassword;
 			long value1;
+			int valDecimals;
 			long value2;
+			int val2Decimals;
 		};
 
 		CounterSettings settings;
+		
+		void storeSettings();
 
 	private:
 		void loadSettings();
-		void storeSettings();
 };
 
 #endif

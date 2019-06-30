@@ -41,14 +41,58 @@
 					<h3 class="mb-4">Настройки</h3>
 
 					<h4 class="mb-3">WIFI</h4>
+					<h5>Текущая сеть</h5>
+					<div class="list-group mb-3">
+						<a
+							href="#"
+							class="list-group-item list-group-item-action"
+							v-if="current"
+						>
+							<b>{{current.ssid}}</b>
+							<span v-if="current.open" class="tex-muted">(open)</span>
+						</a>
+					</div>
+					<h5>Доступные сети</h5>
 					<div class="list-group">
-						<a href="#" class="list-group-item list-group-item-action" v-for="wifi in wifis">{{wifi.ssid}}<span v-if="wifi.open" class="tex-muted">(open)</span></a>
+						<a
+							href="#"
+							class="list-group-item list-group-item-action"
+							v-for="wifi in wifis"
+							@click.stop="openPasskeyForm(wifi)"
+						>
+							{{wifi.ssid}}
+							<span v-if="wifi.open" class="tex-muted">(open)</span>
+						</a>
 					</div>
 			
 				</div>
 			</div>
 
 		</main>
+
+		<div class="modal show d-block" v-if="enterPasswordOpen" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="exampleModalLabel">{{currentWifi.ssid}}</h5>
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="closePasskeyForm()">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+					<div class="modal-body">
+						<div class="form-group">
+							<label for="exampleInputPassword1">Пароль</label>
+							<input type="text" v-model="password" class="form-control">
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-secondary" data-dismiss="modal" @click="closePasskeyForm()">Отмена</button>
+						<button type="button" class="btn btn-primary" @click="connect()" :disabled="!password">Подключиться</button>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="modal-backdrop fade show d-block" v-if="enterPasswordOpen"></div>
 	</div>
 	<script src="scripts/app.js"></script>
 </body>
