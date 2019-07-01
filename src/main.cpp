@@ -117,6 +117,38 @@ void get_apiWifiList(AsyncWebServerRequest *request)
 	request->send(200, "application/json", cJSON_Print(result));
 }
 
+void post_apiValuesUpdate(AsyncWebServerRequest *request)
+{
+	Serial.println(F("Got request to update values"));
+	cJSON *result = cJSON_CreateObject();
+	bool isOk = false;
+
+	if (
+		request->hasParam("val1", true) &&
+		request->hasParam("val2", true) &&
+		request->hasParam("dec1", true) &&
+		request->hasParam("dec2", true)
+	)
+	{
+		long val1 = request->getParam("val1", true)->value().toInt();
+		long val2 = request->getParam("val2", true)->value().toInt();
+		int dec1 = request->getParam("dec1", true)->value().toInt();
+		int dec2 = request->getParam("dec2", true)->value().toInt();
+
+		settings.setValue1(val1);
+		settings.setValue1Decimals(dec1);
+		settings.setValue2(val2);
+		settings.setValue2Decimals(dec2);
+
+		restartAt = millis() + 5000;
+		isOk = true;
+	}
+
+	cJSON_AddBoolToObject(result, "success", isOk);
+
+	request->send(200, "application/json", cJSON_Print(result));
+}
+
 void post_apiWifiConnect(AsyncWebServerRequest *request)
 {
 	Serial.println(F("Got request to connect to WIFI"));
@@ -129,8 +161,8 @@ void post_apiWifiConnect(AsyncWebServerRequest *request)
 
 		Serial.print(F("\t SSID: "));
 		Serial.println(ssid);
-		settings.setSSID(ssid.c_str());
-		settings.setPasskey(request->getParam("passkey", true)->value().c_str());
+		settings.setSSID(ssid);
+		settings.setPasskey(request->getParam("passkey", true)->value());
 		
 		delay(500);
 
@@ -208,9 +240,11 @@ void setup()
 
 	webServer.serveStatic("/", SPIFFS, "/httroot/")
 		.setDefaultFile("index.html");
-		
+
+	webServer.on("/api/values-update", HTTP_POST, post_apiValuesUpdate);
 	webServer.on("/api/wifi-list", HTTP_GET, get_apiWifiList);
 	webServer.on("/api/wifi-connect", HTTP_POST, post_apiWifiConnect);
+
 	webServer.onNotFound(get_404);
 
 	delay(2000);
