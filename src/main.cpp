@@ -17,6 +17,8 @@
 #include "cJSON.h"
 
 #define LED_BUILTIN 2
+#define HOT_PIN 33
+#define COLD_PIN 25
 #define FORMAT_SPIFFS_IF_FAILED true
 #define WIFI_CONNECT_TIMEOUT 20000
 #define AP_SSID "WaterMetterAP"
@@ -32,6 +34,9 @@ int ledTogglePeriod = 2000;
 long ledToggleTime;
 uint32_t ledValue;
 long restartAt = 0;
+
+int currVal1 = 0;
+int currVal2 = 0;
 
 void printMac(char *type, uint8_t *mac)
 {
@@ -117,6 +122,19 @@ void get_apiWifiList(AsyncWebServerRequest *request)
 	request->send(200, "application/json", cJSON_Print(result));
 }
 
+void get_apiValues(AsyncWebServerRequest *request)
+{
+	Serial.println(F("Got request to update values"));
+	cJSON *result = cJSON_CreateObject();
+
+	cJSON_AddNumberToObject(result, "value1", settings.getValue(APP_WM_VALUE1));
+	cJSON_AddNumberToObject(result, "value2", settings.getValue(APP_WM_VALUE2));
+	cJSON_AddNumberToObject(result, "decimals1", settings.getValueDecimals(APP_WM_VALUE1));
+	cJSON_AddNumberToObject(result, "decimals2", settings.getValueDecimals(APP_WM_VALUE2));
+
+	request->send(200, "application/json", cJSON_Print(result));
+}
+
 void post_apiValuesUpdate(AsyncWebServerRequest *request)
 {
 	Serial.println(F("Got request to update values"));
@@ -135,10 +153,13 @@ void post_apiValuesUpdate(AsyncWebServerRequest *request)
 		int dec1 = request->getParam("dec1", true)->value().toInt();
 		int dec2 = request->getParam("dec2", true)->value().toInt();
 
-		settings.setValue1(val1);
-		settings.setValue1Decimals(dec1);
-		settings.setValue2(val2);
-		settings.setValue2Decimals(dec2);
+		Serial.printf("\tvalue1: %ld, dec1: %d, value2: %ld, dec2: %d", val1, dec1, val2, dec2);
+		Serial.println();
+
+		settings.setValue(val1, APP_WM_VALUE1);
+		settings.setValueDecimals(dec1, APP_WM_VALUE1);
+		settings.setValue(val2, APP_WM_VALUE2);
+		settings.setValueDecimals(dec2, APP_WM_VALUE2);
 
 		restartAt = millis() + 5000;
 		isOk = true;
@@ -175,10 +196,28 @@ void post_apiWifiConnect(AsyncWebServerRequest *request)
 	request->send(200, "application/json", cJSON_Print(result));
 }
 
+void incereaseValue(int valueNum)
+{
+	int currDec = settings.getValueDecimals(valueNum);
+	long currVal = settings.getValue(valueNum);
+	currDec += 1; // Increase by 10 liters
+	if (currDec >= 100) // each 1000 liters increasing main value
+	{
+		currDec = 0;
+		currVal += 1;
+		settings.setValue(currVal, valueNum);
+	}
+	settings.setValueDecimals(currDec, valueNum);
+	Serial.printf(" %ld cubes, %d0 liters", currVal, currDec);
+}
+
 void setup()
 {
 	// initialize LED digital pin as an output.
 	pinMode(LED_BUILTIN, OUTPUT);
+	pinMode(COLD_PIN, INPUT_PULLDOWN);
+	pinMode(HOT_PIN, INPUT_PULLDOWN);
+
 	Serial.setDebugOutput(true);
 	Serial.begin(CONFIG_ESPTOOLPY_BAUD);
 	//lwip_bufferize = 0;
@@ -241,16 +280,20 @@ void setup()
 	webServer.serveStatic("/", SPIFFS, "/httroot/")
 		.setDefaultFile("index.html");
 
+	webServer.on("/api/values", HTTP_GET, get_apiValues);
 	webServer.on("/api/values-update", HTTP_POST, post_apiValuesUpdate);
 	webServer.on("/api/wifi-list", HTTP_GET, get_apiWifiList);
 	webServer.on("/api/wifi-connect", HTTP_POST, post_apiWifiConnect);
 
 	webServer.onNotFound(get_404);
 
-	delay(2000);
+	delay(5000);
 	webServer.begin();
 	Serial.print(F("Web server IP: "));
 	Serial.println(ip);
+
+	currVal1 = digitalRead(HOT_PIN);
+	currVal2 = digitalRead(COLD_PIN);
 }
 
 void loop()
@@ -269,4 +312,24 @@ void loop()
 	{
 		ESP.restart();
 	}
+
+	int val1i = digitalRead(HOT_PIN);
+	int val2i = digitalRead(COLD_PIN);
+
+	if (val1i != currVal1)
+	{
+		Serial.print(F("Hot ticked "));
+		currVal1 = val1i;
+		incereaseValue(APP_WM_VALUE1);
+		Serial.println();
+	}
+
+	if (val2i != currVal2)
+	{
+		Serial.print(F("Cold ticked "));
+		currVal2 = val2i;
+		incereaseValue(APP_WM_VALUE2);
+		Serial.println();
+	}
+
 }

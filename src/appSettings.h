@@ -3,6 +3,9 @@
 
 #include "Preferences.h"
 
+#define APP_WM_VALUE1 0
+#define APP_WM_VALUE2 1
+
 class AppSettings {
 	public:
 		AppSettings();
@@ -11,17 +14,13 @@ class AppSettings {
 
 		String getSSID();
 		String getPasskey();
-		long getValue1();
-		long getValue2();
-		int getValue1Decimals();
-		int getValue2Decimals();
+		long getValue(int valueNum);
+		int getValueDecimals(int valueNum);
 
 		void setSSID(String value);
 		void setPasskey(String value);
-		void setValue1(long  value);
-		void setValue2(long  value);
-		void setValue1Decimals(int  value);
-		void setValue2Decimals(int  value);
+		void setValue(long  value, int valueNum);
+		void setValueDecimals(int value, int valueNum);
 
 	private:
 		Preferences prefs;

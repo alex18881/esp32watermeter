@@ -37,20 +37,12 @@ String AppSettings::getPasskey() {
 	return passKey;
 };
 
-long  AppSettings::getValue1() {
-	return val1;
+long  AppSettings::getValue(int valueNum) {
+	return (valueNum == APP_WM_VALUE1) ? val1 : val2;
 };
 
-long  AppSettings::getValue2() {
-	return val2;
-};
-
-int  AppSettings::getValue1Decimals() {
-	return dec1;
-};
-
-int  AppSettings::getValue2Decimals() {
-	return dec2;
+int  AppSettings::getValueDecimals(int valueNum) {
+	return (valueNum == APP_WM_VALUE1) ? dec1 : dec2;
 };
 
 void AppSettings::setSSID(String value){
@@ -62,22 +54,27 @@ void  AppSettings::setPasskey(String value) {
 	passKey = value;
 	prefs.putString("key", passKey);
 };
-void  AppSettings::setValue1(long value) {
-	val1 = value;
-	prefs.putLong("value1", value);
+void  AppSettings::setValue(long value, int valueNum) {
+	if (valueNum == APP_WM_VALUE1) {
+		val1 = value;
+		prefs.putLong("value1", value);
+	}
+	else
+	{
+		val2 = value;
+		prefs.putLong("value2", value);
+	}
 };
 
-void  AppSettings::setValue2(long value) {
-	val2 = value;
-	prefs.putLong("value2", value);
-};
-
-void  AppSettings::setValue1Decimals(int value) {
-	dec1 = value;
-	prefs.putInt("dec1", value);
-};
-
-void  AppSettings::setValue2Decimals(int value) {
-	dec2 = value;
-	prefs.putInt("dec2", value);
+void  AppSettings::setValueDecimals(int value, int valueNum) {
+	if (valueNum == APP_WM_VALUE1)
+	{
+		dec1 = value;
+		prefs.putInt("dec1", value);
+	}
+	else
+	{
+		dec2 = value;
+		prefs.putInt("dec2", value);
+	}
 };

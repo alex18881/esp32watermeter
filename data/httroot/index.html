@@ -9,6 +9,30 @@
 	<link href="css/main.css" rel="stylesheet" />
 	<script src="scripts/axios.min.js"></script>
 	<script src="scripts/vue.js"></script>
+	<script id="loader-html" type="text/x-template">
+		<div claass="text-center">
+			<div class="loader">
+				<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+				width="24px" height="30px" viewBox="0 0 24 30" style="enable-background:new 0 0 50 50;" xml:space="preserve">
+					<rect x="0" y="10" width="4" height="10" fill="#333" opacity="0.2">
+						<animate attributeName="opacity" attributeType="XML" values="0.2; 1; .2" begin="0s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="height" attributeType="XML" values="10; 20; 10" begin="0s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="y" attributeType="XML" values="10; 5; 10" begin="0s" dur="1s" repeatCount="indefinite" />
+					</rect>
+					<rect x="8" y="10" width="4" height="10" fill="#333" opacity="0.2">
+						<animate attributeName="opacity" attributeType="XML" values="0.2; 1; .2" begin="0.15s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="height" attributeType="XML" values="10; 20; 10" begin="0.15s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="y" attributeType="XML" values="10; 5; 10" begin="0.15s" dur="1s" repeatCount="indefinite" />
+					</rect>
+					<rect x="16" y="10" width="4" height="10" fill="#333" opacity="0.2">
+						<animate attributeName="opacity" attributeType="XML" values="0.2; 1; .2" begin="0.3s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="height" attributeType="XML" values="10; 20; 10" begin="0.3s" dur="1s" repeatCount="indefinite" />
+						<animate attributeName="y" attributeType="XML" values="10; 5; 10" begin="0.3s" dur="1s" repeatCount="indefinite" />
+					</rect>
+				</svg>
+			</div>
+		</div>
+	</script>
 </head>
 <body>
 	<div id="app">
@@ -35,7 +59,6 @@
 		</nav>
 
 		<main class="container py-5">
-
 			<div class="row justify-content-md-center">
 				<div class="col-sm-6">
 					<h3 class="mb-4">Настройки</h3>
@@ -49,21 +72,22 @@
 					</ul>
 					<div v-if="settings.activeTab == 0">
 						<h5>Текущая сеть</h5>
-						<div class="list-group mb-3">
+						<loader v-if="!settings.current && settings.wifiLoading"></loader>
+						<div class="list-group mb-3" v-if="settings.current">
 							<a
 								href="#"
 								class="list-group-item list-group-item-action"
-								v-if="settings.current"
 							>
 								<img src="images/wifi-1.svg" height="16px" v-if="settings.current.rssi &lt; -90">
 								<img src="images/wifi-2.svg" height="16px" v-if="settings.current.rssi &gt;= -90 && settings.current.rssi &lt; -75">
 								<img src="images/wifi-3.svg" height="16px" v-if="settings.current.rssi &gt;= -75 && settings.current.rssi &lt; -67">
 								<img src="images/wifi-4.svg" height="16px" v-if="settings.current.rssi &gt;= -67">
-								<b>{{current.ssid}}</b>
+								<b>{{settings.current.ssid}}</b>
 								<span v-if="settings.current.open" class="tex-muted">(open)</span>
 							</a>
 						</div>
 						<h5>Доступные сети</h5>
+						<loader v-if="settings.wifiLoading"></loader>
 						<div class="list-group">
 							<a
 								href="#"
@@ -85,11 +109,11 @@
 						<h5>Текущие значения</h5>
 						<div class="form-group">
 							<label for="exampleInputPassword1">Горячая вода</label>
-							<input type="text" v-model="settings.value1" class="form-control">
+							<input type="text" v-model="settings.counters.value1" class="form-control">
 						</div>
 						<div class="form-group">
 							<label for="exampleInputPassword1">Холодная вода</label>
-							<input type="text" v-model="settings.value2" class="form-control">
+							<input type="text" v-model="settings.counters.value2" class="form-control">
 						</div>
 						<button type="button" class="btn btn-primary" @click="saveValues()">Сохранить</button>
 					</div>
@@ -103,7 +127,7 @@
 			<div class="modal-dialog" role="document">
 				<div class="modal-content">
 					<div class="modal-header">
-						<h5 class="modal-title" id="exampleModalLabel">{{currentWifi.ssid}}</h5>
+						<h5 class="modal-title" id="exampleModalLabel">{{settings.currentWifi.ssid}}</h5>
 						<button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="closePasskeyForm()">
 							<span aria-hidden="true">&times;</span>
 						</button>
