@@ -12,6 +12,7 @@ void AppSettings::init() {
 	val2 = prefs.getLong("value2");
 	dec1 = prefs.getInt("dec1");
 	dec2 = prefs.getInt("dec2");
+	ignoreWifi = prefs.getBool("iWifi");
 
 	Serial.println("Init preferences done:");
 
@@ -37,6 +38,11 @@ String AppSettings::getPasskey() {
 	return passKey;
 };
 
+bool AppSettings::getIgnoreWifi()
+{
+	return ignoreWifi;
+}
+
 long  AppSettings::getValue(int valueNum) {
 	return (valueNum == APP_WM_VALUE1) ? val1 : val2;
 };
@@ -48,6 +54,12 @@ int  AppSettings::getValueDecimals(int valueNum) {
 void AppSettings::setSSID(String value){
 	ssid = value;
 	prefs.putString("ssid", ssid);
+};
+
+void AppSettings::setIgnoreWifi(bool value)
+{
+	ignoreWifi = value;
+	prefs.putBool("iWifi", ignoreWifi);
 };
 
 void  AppSettings::setPasskey(String value) {

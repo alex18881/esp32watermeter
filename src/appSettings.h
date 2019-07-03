@@ -14,6 +14,7 @@ class AppSettings {
 
 		String getSSID();
 		String getPasskey();
+		bool getIgnoreWifi();
 		long getValue(int valueNum);
 		int getValueDecimals(int valueNum);
 
@@ -21,6 +22,7 @@ class AppSettings {
 		void setPasskey(String value);
 		void setValue(long  value, int valueNum);
 		void setValueDecimals(int value, int valueNum);
+		void setIgnoreWifi(bool value);
 
 	private:
 		Preferences prefs;
@@ -30,6 +32,7 @@ class AppSettings {
 		long val2 = 0;
 		int dec1 = 0;
 		int dec2 = 0;
+		bool ignoreWifi = false;
 
 };
 

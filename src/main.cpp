@@ -70,6 +70,9 @@ char * getWifiStatusName(wl_status_t status)
 		case WL_DISCONNECTED :
 			result = (char *)"disconnected";
 			break;
+		case WL_NO_SHIELD:
+			result = (char *)"no shield";
+			break;
 
 		default:
 			result = (char *)"unknown";
@@ -80,7 +83,8 @@ char * getWifiStatusName(wl_status_t status)
 
 void get_404(AsyncWebServerRequest *request)
 {
-	Serial.println(F("Web server: 404"));
+	Serial.print(F("Web server: 404 "));
+	Serial.println(request->url());
 	File file = SPIFFS.open("/httroot/err404.html");
 	request->send(301, "text/html", file.readString());
 	file.close();
@@ -89,12 +93,15 @@ void get_404(AsyncWebServerRequest *request)
 void get_apiWifiList(AsyncWebServerRequest *request)
 {
 	Serial.println(F("Get Wifi list"));
-	Serial.print(F("\tcurrent Wifi SSID"));
+	Serial.print(F("\tcurrent Wifi SSID "));
 	Serial.println(settings.getSSID());
 
-	int count = WiFi.scanNetworks();
+	int count = WiFi.scanNetworks(false, false, true);
 	cJSON *result = cJSON_CreateObject();
 	cJSON *jsonList = cJSON_AddArrayToObject(result, "listAvailable");
+
+	Serial.print(F("\tfound networks: "));
+	Serial.println(count);
 
 	for (int i = 0; i < count; i++)
 	{
@@ -118,6 +125,8 @@ void get_apiWifiList(AsyncWebServerRequest *request)
 		Serial.println(WiFi.SSID(i));
 		delay(10);
 	}
+
+	WiFi.scanDelete();
 
 	request->send(200, "application/json", cJSON_Print(result));
 }
@@ -184,8 +193,6 @@ void post_apiWifiConnect(AsyncWebServerRequest *request)
 		Serial.println(ssid);
 		settings.setSSID(ssid);
 		settings.setPasskey(request->getParam("passkey", true)->value());
-		
-		delay(500);
 
 		restartAt = millis() + 5000;
 		isOk = true;
@@ -234,7 +241,7 @@ void setup()
 	settings.init();
 	IPAddress ip(0,0,0,0);
 
-	if (settings.getSSID().length())
+	if (settings.getSSID().length() && !settings.getIgnoreWifi())
 	{
 		Serial.print(F("Connecting to SSID: "));
 		Serial.println(settings.getSSID());
@@ -247,8 +254,17 @@ void setup()
 			delay(500);
 			Serial.print(F("."));
 		}
-		Serial.println();
+
+		Serial.println(getWifiStatusName(WiFi.status()));
+		if (WiFi.status() != WL_CONNECTED)
+		{
+			settings.setIgnoreWifi(true);
+			ESP.restart();
+			return;
+		}
 	}
+
+	settings.setIgnoreWifi(false);
 
 	if (WiFi.status() == WL_CONNECTED) {
 		Serial.println(F("WiFi connected"));
@@ -256,17 +272,22 @@ void setup()
 		WiFi.setHostname(AP_SSID);
 		ip = WiFi.localIP();
 		ledTogglePeriod = 5000;
+	} else {
+		WiFi.disconnect(false);
+		delay(500);
 
-	} else if( WiFi.softAP(AP_SSID, AP_PASS) ) {
-		Serial.println(F("WIFI Access point"));
-		Serial.print(F("\tMac address: "));
-		Serial.println(WiFi.macAddress());
-		Serial.print(F("\tSSID: "));
-		Serial.println(AP_SSID);
-		Serial.print(F("\tPass phrase: "));
-		Serial.println(AP_PASS);
-		ip = WiFi.softAPIP();
-		ledTogglePeriod = 1000;
+		if (WiFi.softAP(AP_SSID, AP_PASS)) {
+			Serial.print(F("WIFI Access point "));
+			Serial.println(getWifiStatusName(WiFi.status()));
+			Serial.print(F("\tMac address: "));
+			Serial.println(WiFi.macAddress());
+			Serial.print(F("\tSSID: "));
+			Serial.println(AP_SSID);
+			Serial.print(F("\tPass phrase: "));
+			Serial.println(AP_PASS);
+			ip = WiFi.softAPIP();
+			ledTogglePeriod = 1000;
+		}
 	}
 
 	ledValue = HIGH;
@@ -287,7 +308,8 @@ void setup()
 
 	webServer.onNotFound(get_404);
 
-	delay(5000);
+	delay(2000);
+
 	webServer.begin();
 	Serial.print(F("Web server IP: "));
 	Serial.println(ip);

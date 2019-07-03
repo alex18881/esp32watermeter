@@ -2,63 +2,115 @@ Vue.component("loader", {
 	template: "#loader-html"
 });
 
-var app = new Vue({
-	el: '#app',
+Vue.component("settings-wifi-login", {
+	template: "#settings-wifi-login-html",
+	props: [
+		'currentWifi'
+	],
 	data: function () {
 		return {
-			settings: {
-				activeTab: 0,
-				currentWifi: null,
-				enterPasswordOpen: false,
-				wifiLoading: false,
-				countersLoading: false,
-				password: "",
-				current: null,
-				wifis: [],
-				counters: {
-					value1: 0,
-					value2: 0
-				}
-			}
+			password: ""
 		};
 	},
+
 	methods: {
-		selectSettinsTab: function (val) {
-			this.settings.activeTab = val;
-			if (val === 0) {
-				this.loadWifis();
-			} else if (val === 1) {
-				this.loadValues();
-			}
-
-		},
-		openPasskeyForm: function (wifi) {
-			this.settings.currentWifi = wifi;
-			this.settings.enterPasswordOpen = true;
-		},
-		closePasskeyForm: function () {
-			this.settings.enterPasswordOpen = false;
-		},
-
 		connect: function () {
 			axios.post(
 				"/api/wifi-connect",
-				"ssid=" + encodeURIComponent(this.settings.currentWifi.ssid) + "&passkey=" + encodeURIComponent(this.settings.password),
+				"ssid=" + encodeURIComponent(this.currentWifi.ssid) + "&passkey=" + encodeURIComponent(this.password),
 				{ headers: { 'content-type': 'application/x-www-form-urlencoded' } }
 			)
 				.then(function () {
-					this.settings.password = "";
-					alert("Сохранено. Перезагрузка");
-					window.setTimeout(this.selectSettinsTab.bind(this, this.settings.activeTab), 10000);
+					this.password = "";
+					this.$emit('close');
 				}.bind(this))
 				.catch(function (err) {
 					alert(err);
 				}.bind(this))
 		},
+		closeModal: function () {
+			this.$emit('dismiss');
+		}
+	}
+});
 
+Vue.component("settings-page", {
+	template: "#settings-page-html",
+	data: function () {
+		return {
+			activeTab: 0
+		};
+	},
+	methods: {
+		selectSettinsTab: function (val) {
+			this.activeTab = val;
+		}
+	}
+});
+
+Vue.component("settings-wifi", {
+	template: "#settings-wifi-html",
+	data: function () {
+		return {
+			loading: false,
+			current: null,
+			wifis: [],
+			password: "",
+			enterPasswordOpen: false
+		};
+	},
+	methods: {
+		loadWifis: function () {
+			this.loading = true;
+			axios.get("/api/wifi-list")
+				.then(function (data) {
+					if (data.data.reload && data.data.time) {
+						window.setTimeout(
+							this.loadWifis.binf(this),
+							data.data.time * 1000
+						);
+					} else {
+						this.current = data.data.connected;
+						this.wifis.push.apply(this.wifis, data.data.listAvailable);
+						this.loading = false;
+					}
+				}.bind(this))
+				.catch(function (err) {
+					this.loading = false;
+					alert(err);
+				}.bind(this));
+		},
+		openPasskeyForm: function (wifi) {
+			this.currentWifi = wifi;
+			this.enterPasswordOpen = true;
+		},
+		closePasskeyForm: function (reload) {
+			this.currentWifi = null;
+			this.enterPasswordOpen = false;
+			if (reload) {
+				alert("Сохранено. Перезагрузка");
+				window.setTimeout(this.loadWifis.bind(this), 10000);
+			}
+		}
+	},
+	mounted: function () {
+		this.loadWifis();
+	}
+});
+
+Vue.component("settings-counters", {
+	template: "#settings-counters-html",
+	data: function () {
+		return {
+			value1: 0,
+			value2: 0,
+			loading: false
+		};
+	},
+	methods: {
 		saveValues: function () {
-			var val1 = String(this.settings.counters.value1).split("."),
-				val2 = String(this.settings.counters.value2).split(".");
+			var val1 = String(this.value1).split("."),
+				val2 = String(this.value2).split(".");
 
 			axios.post(
 				"/api/values-update",
@@ -67,7 +119,7 @@ var app = new Vue({
 			)
 				.then(function () {
 					alert("Сохранено. Перезагрузка");
-					window.setTimeout(this.selectSettinsTab.bind(this, this.settings.activeTab), 10000);
+					window.setTimeout(this.loadValues.bind(this), 10000);
 				}.bind(this))
 				.catch(function (err) {
 					alert(err);
@@ -75,38 +127,43 @@ var app = new Vue({
 		},
 
 		loadValues: function () {
-			this.settings.countersLoading = true;
+			this.loading = true;
 			axios.get("/api/values")
 				.then(function (data) {
-					if (data && data.data)
-					{
-						this.settings.counters.value1 = data.data.value1 + (data.data.decimals1 / 100);
-						this.settings.counters.value2 = data.data.value2 + (data.data.decimals2 / 100);
+					if (data && data.data) {
+						this.value1 = data.data.value1 + (data.data.decimals1 / 100);
+						this.value2 = data.data.value2 + (data.data.decimals2 / 100);
 					}
-					this.settings.countersLoading = false;
+					this.loading = false;
 				}.bind(this))
 				.catch(function (err) {
-					this.settings.countersLoading = false;
-					alert(err);
-				}.bind(this));
-
-		},
-
-		loadWifis: function () {
-			this.settings.wifiLoading = true;
-			axios.get("/api/wifi-list")
-				.then(function (data) {
-					this.settings.current = data.data.connected;
-					this.settings.wifis.push.apply(this.settings.wifis, data.data.listAvailable);
-					this.settings.wifiLoading = false;
-				}.bind(this))
-				.catch(function (err) {
-					this.settings.wifiLoading = false;
+					this.loading = false;
 					alert(err);
 				}.bind(this));
 		}
 	},
+	mounted: function () {
+		this.loadValues();
+	}
+});
+
+var app = new Vue({
+	el: '#app',
+	data: function () {
+		return {
+			page: 0,
+			menuVisible: false
+		};
+	},
+	methods: {
+		toggleMenu: function () {
+			this.menuVisible = !this.menuVisible
+		},
+		openPage: function(index) {
+			this.menuVisible = false;
+			this.page = index;
+		}
+	},
 	mounted: function() {
-		this.selectSettinsTab(0);
 	}
 });

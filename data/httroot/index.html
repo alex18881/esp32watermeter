@@ -33,6 +33,101 @@
 			</div>
 		</div>
 	</script>
+	<script id="settings-wifi-login-html" type="text/x-template">
+		<div>
+			<div class="modal show d-block" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title" id="exampleModalLabel">{{currentWifi.ssid}}</h5>
+							<button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="closeModal()">
+								<span aria-hidden="true">&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<div class="form-group">
+								<label for="exampleInputPassword1">Пароль</label>
+								<input type="text" v-model="password" class="form-control">
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-dismiss="modal" @click="closeModal()">Отмена</button>
+							<button type="button" class="btn btn-primary" @click="connect()" :disabled="!password">Подключиться</button>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modal-backdrop fade show d-block"></div>
+		</div>
+	</script>
+	<script id="settings-page-html" type="text/x-template">
+		<div class="row justify-content-md-center">
+			<div class="col-sm-6">
+				<h3 class="mb-4">Настройки</h3>
+				<ul class="nav nav-tabs mb-3">
+					<li class="nav-item">
+						<a class="nav-link" :class="{active: activeTab == 0}" @click.prevent="selectSettinsTab(0)" href="#">WIFI</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link" :class="{active: activeTab == 1}" @click.prevent="selectSettinsTab(1)" href="#">Счетчики</a>
+					</li>
+				</ul>
+				<settings-wifi v-if="activeTab == 0"></settings-wifi>
+				<settings-counters v-if="activeTab == 1"></settings-counters>
+			</div>
+		</div>
+	</script>
+	<script id="settings-wifi-html" type="text/x-template">
+		<div>
+			<h5>Текущая сеть</h5>
+			<loader v-if="!current && loading"></loader>
+			<div class="list-group mb-3" v-if="current">
+				<a
+					href="#"
+					class="list-group-item list-group-item-action"
+				>
+					<img src="images/wifi-1.svg" height="16px" v-if="current.rssi &lt; -90">
+					<img src="images/wifi-2.svg" height="16px" v-if="current.rssi &gt;= -90 && current.rssi &lt; -75">
+					<img src="images/wifi-3.svg" height="16px" v-if="current.rssi &gt;= -75 && current.rssi &lt; -67">
+					<img src="images/wifi-4.svg" height="16px" v-if="current.rssi &gt;= -67">
+					<b>{{current.ssid}}</b>
+					<span v-if="current.open" class="tex-muted">(open)</span>
+				</a>
+			</div>
+			<h5>Доступные сети</h5>
+			<loader v-if="loading"></loader>
+			<div class="list-group">
+				<a
+					href="#"
+					class="list-group-item list-group-item-action"
+					v-for="wifi in wifis"
+					@click.stop="openPasskeyForm(wifi)"
+				>
+					<img src="images/wifi-1.svg" height="16px" v-if="wifi.rssi &lt; -80">
+					<img src="images/wifi-2.svg" height="16px" v-if="wifi.rssi &gt;= -80 && wifi.rssi &lt; -70">
+					<img src="images/wifi-3.svg" height="16px" v-if="wifi.rssi &gt;= -70 && wifi.rssi &lt; -67">
+					<img src="images/wifi-4.svg" height="16px" v-if="wifi.rssi &gt;= -67">
+					{{wifi.ssid}}
+					<span v-if="wifi.open" class="tex-muted">(open)</span>
+				</a>
+			</div>
+			<settings-wifi-login v-if="enterPasswordOpen" :current-wifi="currentWifi" @close="closePasskeyForm(true)" @dismiss="closePasskeyForm(false)"></settings-wifi-login>
+		</div>
+	</script>
+	<script id="settings-counters-html" type="text/x-template">
+		<div>
+			<h5>Текущие значения</h5>
+			<div class="form-group">
+				<label for="exampleInputPassword1">Горячая вода</label>
+				<input type="text" v-model="value1" class="form-control">
+			</div>
+			<div class="form-group">
+				<label for="exampleInputPassword1">Холодная вода</label>
+				<input type="text" v-model="value2" class="form-control">
+			</div>
+			<button type="button" class="btn btn-primary" @click="saveValues()">Сохранить</button>
+		</div>
+	</script>
 </head>
 <body>
 	<div id="app">
@@ -42,110 +137,33 @@
 					alt="">
 				ESP32 Water Metter 
 			</a>
-			<button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav"
-				aria-expanded="false" aria-label="Toggle navigation">
+			<button
+				class="navbar-toggler"
+				type="button"
+				data-toggle="collapse"
+				data-target="#navbarNav"
+				aria-controls="navbarNav"
+				aria-expanded="false"
+				@click="toggleMenu()"
+				:class="{ collapsed: !menuVisible }"
+			>
 				<span class="navbar-toggler-icon"></span>
 			</button>
-			<div class="collapse navbar-collapse" id="navbarNav">
+			<div class="collapse navbar-collapse" :class="{ show: menuVisible }" id="navbarNav">
 				<ul class="navbar-nav">
-					<li class="nav-item">
-						<a class="nav-link" href="#">Мониторинг</a>
+					<li class="nav-item" :class="{active: page == 0}">
+						<a class="nav-link" href="#" @click.prevent="openPage(0)">Мониторинг</a>
 					</li>
-					<li class="nav-item">
-						<a class="nav-link" href="#">Настройки</a>
+					<li class="nav-item" :class="{active: page == 1}">
+						<a class="nav-link" href="#" @click.prevent="openPage(1)">Настройки</a>
 					</li>
 				</ul>
 			</nav>
 		</nav>
 
 		<main class="container py-5">
-			<div class="row justify-content-md-center">
-				<div class="col-sm-6">
-					<h3 class="mb-4">Настройки</h3>
-					<ul class="nav nav-tabs mb-3">
-						<li class="nav-item">
-							<a class="nav-link" :class="{active: settings.activeTab == 0}" @click.prevent="selectSettinsTab(0)" href="#">WIFI</a>
-						</li>
-						<li class="nav-item">
-							<a class="nav-link" :class="{active: settings.activeTab == 1}" @click.prevent="selectSettinsTab(1)" href="#">Счетчики</a>
-						</li>
-					</ul>
-					<div v-if="settings.activeTab == 0">
-						<h5>Текущая сеть</h5>
-						<loader v-if="!settings.current && settings.wifiLoading"></loader>
-						<div class="list-group mb-3" v-if="settings.current">
-							<a
-								href="#"
-								class="list-group-item list-group-item-action"
-							>
-								<img src="images/wifi-1.svg" height="16px" v-if="settings.current.rssi &lt; -90">
-								<img src="images/wifi-2.svg" height="16px" v-if="settings.current.rssi &gt;= -90 && settings.current.rssi &lt; -75">
-								<img src="images/wifi-3.svg" height="16px" v-if="settings.current.rssi &gt;= -75 && settings.current.rssi &lt; -67">
-								<img src="images/wifi-4.svg" height="16px" v-if="settings.current.rssi &gt;= -67">
-								<b>{{settings.current.ssid}}</b>
-								<span v-if="settings.current.open" class="tex-muted">(open)</span>
-							</a>
-						</div>
-						<h5>Доступные сети</h5>
-						<loader v-if="settings.wifiLoading"></loader>
-						<div class="list-group">
-							<a
-								href="#"
-								class="list-group-item list-group-item-action"
-								v-for="wifi in settings.wifis"
-								@click.stop="openPasskeyForm(wifi)"
-							>
-								<img src="images/wifi-1.svg" height="16px" v-if="wifi.rssi &lt; -80">
-								<img src="images/wifi-2.svg" height="16px" v-if="wifi.rssi &gt;= -80 && wifi.rssi &lt; -70">
-								<img src="images/wifi-3.svg" height="16px" v-if="wifi.rssi &gt;= -70 && wifi.rssi &lt; -67">
-								<img src="images/wifi-4.svg" height="16px" v-if="wifi.rssi &gt;= -67">
-								{{wifi.ssid}}
-								<span v-if="wifi.open" class="tex-muted">(open)</span>
-							</a>
-						</div>
-					</div>
-
-					<div v-if="settings.activeTab == 1">
-						<h5>Текущие значения</h5>
-						<div class="form-group">
-							<label for="exampleInputPassword1">Горячая вода</label>
-							<input type="text" v-model="settings.counters.value1" class="form-control">
-						</div>
-						<div class="form-group">
-							<label for="exampleInputPassword1">Холодная вода</label>
-							<input type="text" v-model="settings.counters.value2" class="form-control">
-						</div>
-						<button type="button" class="btn btn-primary" @click="saveValues()">Сохранить</button>
-					</div>
-			
-				</div>
-			</div>
-
+			<settings-page v-if="page == 1"></settings-page>
 		</main>
-
-		<div class="modal show d-block" v-if="settings.enterPasswordOpen" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
-			<div class="modal-dialog" role="document">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title" id="exampleModalLabel">{{settings.currentWifi.ssid}}</h5>
-						<button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="closePasskeyForm()">
-							<span aria-hidden="true">&times;</span>
-						</button>
-					</div>
-					<div class="modal-body">
-						<div class="form-group">
-							<label for="exampleInputPassword1">Пароль</label>
-							<input type="text" v-model="settings.password" class="form-control">
-						</div>
-					</div>
-					<div class="modal-footer">
-						<button type="button" class="btn btn-secondary" data-dismiss="modal" @click="closePasskeyForm()">Отмена</button>
-						<button type="button" class="btn btn-primary" @click="connect()" :disabled="!settings.password">Подключиться</button>
-					</div>
-				</div>
-			</div>
-		</div>
-		<div class="modal-backdrop fade show d-block" v-if="settings.enterPasswordOpen"></div>
 	</div>
 	<script src="scripts/app.js"></script>
 </body>
