@@ -7,24 +7,26 @@
 #define DEBUG_ESP_CORE
 
 #include "Arduino.h"
-#include "WiFi.h"
 #include "sdkconfig.h"
 #include "esp_system.h"
 #include "SPIFFS.h"
 #include "appSettings.h"
+#include "cJSON.h"
+#include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include "cJSON.h"
 
 #define LED_BUILTIN 2
 #define HOT_PIN 33
 #define COLD_PIN 25
 #define FORMAT_SPIFFS_IF_FAILED true
 #define WIFI_CONNECT_TIMEOUT 20000
+#define WIFI_HOST_NAME "watter-metter"
 #define AP_SSID "WaterMetterAP"
 #define AP_PASS "12345678"
 #define HTROOT "/httroot"
 
+//extern int lwip_bufferize;
 
 AsyncWebServer webServer(80);
 AppSettings settings;
@@ -41,7 +43,22 @@ int currVal2 = 0;
 void printMac(char *type, uint8_t *mac)
 {
 	Serial.printf("%s: %02x:%02x:%02x:%02x:%02x:%02x", type, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	Serial.println("");
+	Serial.println(F(""));
+}
+
+void listFiles() {
+	File root = SPIFFS.open("/");
+
+	File file = root.openNextFile();
+
+	while (file) {
+		Serial.printf("%s (%d)", file.name(), file.size());
+		Serial.println(F(">"));
+		Serial.print(file.readString());
+		Serial.println(F("--"));
+		file.close();
+		file = root.openNextFile();
+	}
 }
 
 char * getWifiStatusName(wl_status_t status)
@@ -85,9 +102,7 @@ void get_404(AsyncWebServerRequest *request)
 {
 	Serial.print(F("Web server: 404 "));
 	Serial.println(request->url());
-	File file = SPIFFS.open("/httroot/err404.html");
-	request->send(301, "text/html", file.readString());
-	file.close();
+	request->send(301, "text/html", "/err404.html");
 }
 
 void get_apiWifiList(AsyncWebServerRequest *request)
@@ -123,7 +138,6 @@ void get_apiWifiList(AsyncWebServerRequest *request)
 
 		Serial.print(F("Found SSID: "));
 		Serial.println(WiFi.SSID(i));
-		delay(10);
 	}
 
 	WiFi.scanDelete();
@@ -141,6 +155,12 @@ void get_apiValues(AsyncWebServerRequest *request)
 	cJSON_AddNumberToObject(result, "decimals1", settings.getValueDecimals(APP_WM_VALUE1));
 	cJSON_AddNumberToObject(result, "decimals2", settings.getValueDecimals(APP_WM_VALUE2));
 
+	request->send(200, "application/json", cJSON_Print(result));
+}
+
+void get_apiVoltage(AsyncWebServerRequest *request)
+{
+	cJSON *result = cJSON_CreateObject();
 	request->send(200, "application/json", cJSON_Print(result));
 }
 
@@ -225,9 +245,9 @@ void setup()
 	pinMode(COLD_PIN, INPUT_PULLDOWN);
 	pinMode(HOT_PIN, INPUT_PULLDOWN);
 
-	Serial.setDebugOutput(true);
 	Serial.begin(CONFIG_ESPTOOLPY_BAUD);
-	//lwip_bufferize = 0;
+	Serial.setDebugOutput(true);
+//	lwip_bufferize = 0;
 
 	Serial.printf("Built at '%s' %s\n", __DATE__, __TIME__);
 	Serial.println();
@@ -236,6 +256,9 @@ void setup()
 	{
 		Serial.println("SPIFFS Mount Failed");
 		return;
+	} else {
+		Serial.println("SPIFFS Mounted. FilesList:");
+		listFiles();
 	}
 
 	settings.init();
@@ -243,8 +266,13 @@ void setup()
 
 	if (settings.getSSID().length() && !settings.getIgnoreWifi())
 	{
+		Serial.print(F("\tMac address: "));
+		Serial.println(WiFi.macAddress());
 		Serial.print(F("Connecting to SSID: "));
 		Serial.println(settings.getSSID());
+
+		WiFi.mode(WIFI_STA);
+		WiFi.softAP(WIFI_HOST_NAME);
 
 		WiFi.begin(settings.getSSID().c_str(), settings.getPasskey().c_str());
 		long connectTimeout = millis() + WIFI_CONNECT_TIMEOUT;
@@ -275,9 +303,9 @@ void setup()
 	} else {
 		WiFi.disconnect(false);
 		delay(500);
-
+		WiFi.mode(WIFI_AP);
 		if (WiFi.softAP(AP_SSID, AP_PASS)) {
-			Serial.print(F("WIFI Access point "));
+			Serial.print(F("WIFI Access point: "));
 			Serial.println(getWifiStatusName(WiFi.status()));
 			Serial.print(F("\tMac address: "));
 			Serial.println(WiFi.macAddress());
@@ -298,9 +326,9 @@ void setup()
 
 	//webServer = AsyncWebServer(80);
 
-	webServer.serveStatic("/", SPIFFS, "/httroot/")
-		.setDefaultFile("index.html");
+	webServer.serveStatic("/", SPIFFS, "/httroot/").setDefaultFile("index.html");
 
+	webServer.on("/api/voltage", HTTP_GET, get_apiVoltage);
 	webServer.on("/api/values", HTTP_GET, get_apiValues);
 	webServer.on("/api/values-update", HTTP_POST, post_apiValuesUpdate);
 	webServer.on("/api/wifi-list", HTTP_GET, get_apiWifiList);

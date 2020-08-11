@@ -16,3 +16,12 @@
 .loader svg rect{
   fill: #FF6700;
 }
+
+.counter * {
+	font-size: 3rem;
+	font-weight: bold;
+	border: 1px black solid;
+	display: inline-block;
+	vertical-align: baseline;
+	padding: 0 4px;
+}

@@ -147,6 +147,55 @@ Vue.component("settings-counters", {
 	}
 });
 
+Vue.component("counters-page", {
+	template: "#counters-page-html",
+	data: function () {
+		return {
+			loading: false,
+			value1: 0,
+			value2: 0,
+			decimals1: 0,
+			decimals2: 0,
+			loadingTimer: null
+		}
+	},
+	methods: {
+		applyData: function (data) {
+			if (this._isDestroyed || this._isBeingDestroyed) return;
+			
+			this.loading = false;
+			this.value1 = ('000000' + data.data.value1).slice(-6).split("");
+			this.value2 = ('000000' + data.data.value2).slice(-6).split("");
+			this.decimals1 = ('000' + data.data.decimals1).slice(-2).split("");
+			this.decimals2 = ('000' + data.data.decimals2).slice(-2).split("");
+			this.loadingTimer = window.setTimeout(this.loadValues.bind(this), 5000);
+		},
+
+		loadValues: function () {
+			if (this.loadingTimer) {
+				window.clearTimeout(this.loadingTimer);
+			}
+			axios.get("/api/values")
+				.then(this.applyData.bind(this))
+				.catch(function (err) {
+					this.loading = false;
+					alert(err);
+				}.bind(this));
+		}
+	},
+
+	mounted: function () {
+		this.loading = true;
+		this.loadValues()
+	},
+
+	destroyed: function () {
+		if (this.loadingTimer) {
+			window.clearTimeout(this.loadingTimer);
+		}
+	}
+});
+
 var app = new Vue({
 	el: '#app',
 	data: function () {
