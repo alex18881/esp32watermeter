@@ -44,6 +44,13 @@ Vue.component("settings-page", {
 	methods: {
 		selectSettinsTab: function (val) {
 			this.activeTab = val;
+		},
+
+		resetSettings: function () {
+			if (!confirm("Вы собираетесть сбросить все настройки. Продолжить?")) return;
+			axios.post("/api/reset")
+				.then(function () { alert("Сброшено"); })
+				.catch(function (err) { alert(err); });
 		}
 	}
 });
@@ -104,17 +111,16 @@ Vue.component("settings-counters", {
 		return {
 			value1: 0,
 			value2: 0,
+			tickValue1: 0,
+			tickValue2: 0,
 			loading: false
 		};
 	},
 	methods: {
 		saveValues: function () {
-			var val1 = String(this.value1).split("."),
-				val2 = String(this.value2).split(".");
-
 			axios.post(
 				"/api/values-update",
-				"val1=" + (val1[0] || 0) + "&dec1=" + (val1[1] || 0) + "&val2=" + (val2[0] || 0) + "&dec2=" + (val2[1] || 0),
+				"val1=" + (this.value1 || 0) + "&val2=" + (this.value2 || 0) + "&ticks1=" + this.tickValue1 + "&ticks2=" + this.tickValue2,
 				{ headers: { 'content-type': 'application/x-www-form-urlencoded' } }
 			)
 				.then(function () {
@@ -131,8 +137,10 @@ Vue.component("settings-counters", {
 			axios.get("/api/values")
 				.then(function (data) {
 					if (data && data.data) {
-						this.value1 = data.data.value1 + (data.data.decimals1 / 100);
-						this.value2 = data.data.value2 + (data.data.decimals2 / 100);
+						this.value1 = data.data.value1;
+						this.value2 = data.data.value2;
+						this.tickValue1 = data.data.ticks1;
+						this.tickValue2 = data.data.ticks2;
 					}
 					this.loading = false;
 				}.bind(this))
@@ -164,10 +172,10 @@ Vue.component("counters-page", {
 			if (this._isDestroyed || this._isBeingDestroyed) return;
 			
 			this.loading = false;
-			this.value1 = ('000000' + data.data.value1).slice(-6).split("");
-			this.value2 = ('000000' + data.data.value2).slice(-6).split("");
-			this.decimals1 = ('000' + data.data.decimals1).slice(-2).split("");
-			this.decimals2 = ('000' + data.data.decimals2).slice(-2).split("");
+			this.value1 = ('000000' + data.data.value1).slice(0, -3).slice(-5).split("");
+			this.value2 = ('000000' + data.data.value2).slice(0, -3).slice(-5).split("");
+			this.decimals1 = ('000' + data.data.value1).slice(-3).split("");
+			this.decimals2 = ('000' + data.data.value2).slice(-3).split("");
 			this.loadingTimer = window.setTimeout(this.loadValues.bind(this), 5000);
 		},
 

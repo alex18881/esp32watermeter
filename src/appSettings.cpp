@@ -3,31 +3,40 @@
 AppSettings::AppSettings() {}
 
 void AppSettings::init() {
-	Serial.println("Initing preferences");
-	prefs.begin("settings", false);
+	Serial.println(F("Initing preferences"));
+	startPrefs();
 
-	ssid = prefs.getString("ssid");
-	passKey = prefs.getString("key");
-	val1 = prefs.getLong("value1");
-	val2 = prefs.getLong("value2");
-	dec1 = prefs.getInt("dec1");
-	dec2 = prefs.getInt("dec2");
-	ignoreWifi = prefs.getBool("iWifi");
+	ssid = prefs.getString(APP_SETTINGS_KEY_SSID);
+	passKey = prefs.getString(APP_SETTINGS_KEY_KEY);
+	val1 = prefs.getLong(APP_SETTINGS_KEY_VAL1);
+	val2 = prefs.getLong(APP_SETTINGS_KEY_VAL2);
+	tickValue1 = prefs.getInt(APP_SETTINGS_KEY_TIC1);
+	tickValue2 = prefs.getInt(APP_SETTINGS_KEY_TIC2);
+	ignoreWifi = prefs.getBool(APP_SETTINGS_KEY_IWIFI);
 
-	Serial.println("Init preferences done:");
+	Serial.println(F("Init preferences done:"));
 
-	Serial.print("\tSSID: ");
+	Serial.print(F("\tSSID: "));
 	Serial.println(ssid);
-	Serial.print("\tPass key: ");
-	Serial.println(passKey);
-	Serial.print("\tValue 1: ");
-	Serial.print(val1);
-	Serial.print(".");
-	Serial.println(dec1);
-	Serial.print("\tValue 2: ");
-	Serial.print(val2);
-	Serial.print(".");
-	Serial.println(dec2);
+	Serial.print(F("\tPass key: "));
+	Serial.println(passKey.length() > 0 ? "*****" : "-");
+	Serial.printf("\tValue 1: %ld with %d liters per tick", val1, tickValue1);
+	Serial.println();
+	Serial.printf("\tValue 2: %ld with %d liters per tick", val2, tickValue2);
+	Serial.println();
+	prefs.end();
+}
+
+void AppSettings::startPrefs() {
+	prefs.begin("settings", false);
+	Serial.printf("Free %d entries", prefs.freeEntries());
+	Serial.println(F(""));
+}
+
+void AppSettings::clear() {
+	startPrefs();
+	Serial.println(prefs.clear() ? F("Settings cleared") : F("Failed to clear settings"));
+	prefs.end();
 }
 
 String AppSettings::getSSID() {
@@ -43,50 +52,74 @@ bool AppSettings::getIgnoreWifi()
 	return ignoreWifi;
 }
 
-long  AppSettings::getValue(int valueNum) {
+long AppSettings::getValue(int valueNum) {
 	return (valueNum == APP_WM_VALUE1) ? val1 : val2;
 };
 
-int  AppSettings::getValueDecimals(int valueNum) {
-	return (valueNum == APP_WM_VALUE1) ? dec1 : dec2;
+int AppSettings::getTickValue(int valueNum) {
+	int val = (valueNum == APP_WM_VALUE1) ? tickValue1 : tickValue2;
+	val = val > 0 ? val : DEFAULT_TICK_VALUE;
+	return val;
 };
 
 void AppSettings::setSSID(String value){
+	Serial.print(F("Update WIFI SSID: "));
+	Serial.println(value);
+
 	ssid = value;
-	prefs.putString("ssid", ssid);
+	startPrefs();
+	prefs.putString(APP_SETTINGS_KEY_SSID, ssid);
+	prefs.end();
 };
 
 void AppSettings::setIgnoreWifi(bool value)
 {
+	Serial.print(F("Update ignore WIFI: "));
+	Serial.println(value ? "true" : "false");
+
 	ignoreWifi = value;
-	prefs.putBool("iWifi", ignoreWifi);
+	startPrefs();
+	prefs.putBool(APP_SETTINGS_KEY_IWIFI, ignoreWifi);
+	prefs.end();
 };
 
 void  AppSettings::setPasskey(String value) {
+	Serial.print(F("Update pass key: "));
+	Serial.println(value);
 	passKey = value;
-	prefs.putString("key", passKey);
+	startPrefs();
+	prefs.putString(APP_SETTINGS_KEY_KEY, passKey);
+	prefs.end();
 };
 void  AppSettings::setValue(long value, int valueNum) {
+	Serial.print(F("Update value "));
+	Serial.printf("%d: %ld", valueNum, value);
+	Serial.println(F(""));
+	startPrefs();
 	if (valueNum == APP_WM_VALUE1) {
 		val1 = value;
-		prefs.putLong("value1", value);
+		prefs.putLong(APP_SETTINGS_KEY_VAL1, value);
 	}
 	else
 	{
 		val2 = value;
-		prefs.putLong("value2", value);
+		prefs.putLong(APP_SETTINGS_KEY_VAL2, value);
 	}
+	prefs.end();
 };
 
-void  AppSettings::setValueDecimals(int value, int valueNum) {
-	if (valueNum == APP_WM_VALUE1)
-	{
-		dec1 = value;
-		prefs.putInt("dec1", value);
+void  AppSettings::setTickValue(int value, int valueNum) {
+	Serial.printf("Update tick value %d: %d liters per tic", valueNum, value);
+	Serial.println(F(""));
+	startPrefs();
+	if (valueNum == APP_WM_VALUE1) {
+		tickValue1 = value;
+		prefs.putBool(APP_SETTINGS_KEY_TIC1, value);
 	}
 	else
 	{
-		dec2 = value;
-		prefs.putInt("dec2", value);
+		tickValue2 = value;
+		prefs.putBool(APP_SETTINGS_KEY_TIC2, value);
 	}
+	prefs.end();
 };

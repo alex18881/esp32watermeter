@@ -63,17 +63,20 @@
 	<script id="settings-page-html" type="text/x-template">
 		<div class="row justify-content-md-center">
 			<div class="col-sm-6">
-				<h3 class="mb-4">Настройки</h3>
+				<div class="clearfix">
+					<button type="button" class="btn btn-danger float-right" @click="resetSettings()">Сбросить</button>
+					<h3 class="mb-4">Настройки</h3>
+				</div>
 				<ul class="nav nav-tabs mb-3">
 					<li class="nav-item">
-						<a class="nav-link" :class="{active: activeTab == 0}" @click.prevent="selectSettinsTab(0)" href="#">WIFI</a>
+						<a class="nav-link" :class="{active: activeTab == 0}" @click.prevent="selectSettinsTab(0)" href="#">Счетчики</a>
 					</li>
 					<li class="nav-item">
-						<a class="nav-link" :class="{active: activeTab == 1}" @click.prevent="selectSettinsTab(1)" href="#">Счетчики</a>
+						<a class="nav-link" :class="{active: activeTab == 1}" @click.prevent="selectSettinsTab(1)" href="#">WIFI</a>
 					</li>
 				</ul>
-				<settings-wifi v-if="activeTab == 0"></settings-wifi>
-				<settings-counters v-if="activeTab == 1"></settings-counters>
+				<settings-counters v-if="activeTab == 0"></settings-counters>
+				<settings-wifi v-if="activeTab == 1"></settings-wifi>
 			</div>
 		</div>
 	</script>
@@ -118,19 +121,27 @@
 		<div>
 			<h5>Текущие значения</h5>
 			<div class="form-group">
-				<label for="exampleInputPassword1">Горячая вода</label>
-				<input type="text" v-model="value1" class="form-control">
+				<label for="value1field">Горячая вода (л)</label>
+				<input type="text" id="value1field" v-model="value1" class="form-control">
+				<div>
+					<label for="value1field">Объем воды за полный импульс (л)</label>	
+					<input type="text" id="tickValue1field" v-model="tickValue1" class="form-control">
+				</div>
 			</div>
 			<div class="form-group">
-				<label for="exampleInputPassword1">Холодная вода</label>
-				<input type="text" v-model="value2" class="form-control">
+				<label for="value2field">Холодная вода (л)</label>
+				<input type="text" id="value2field" v-model="value2" class="form-control">
+				<div>
+					<label for="value1field">Объем воды за полный импульс (л)</label>	
+					<input type="text" id="tickValue2field" v-model="tickValue2" class="form-control">
+				</div>
 			</div>
 			<button type="button" class="btn btn-primary" @click="saveValues()">Сохранить</button>
 		</div>
 	</script>
 	<script id="counters-page-html" type="text/x-template">
 		<div>
-			<h5 class="mb-4">Текущие значения</h5>
+			<h3 class="mb-4 text-center">Текущие значения</h3>
 			<div class="row">
 				<div class="col col-12 col-md-6 text-center">
 					<h4 class="mb-3">Горячая</h4>
