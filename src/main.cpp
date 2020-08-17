@@ -16,7 +16,7 @@
 
 #define LED_BUILTIN 2
 #define HOT_PIN 33
-#define COLD_PIN 25
+#define COLD_PIN 32
 #define WIFI_CONNECT_TIMEOUT 20000
 #define WIFI_HOST_NAME "watter-metter"
 #define AP_SSID "WaterMetterAP"
